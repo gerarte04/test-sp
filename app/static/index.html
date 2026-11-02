@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Черновик карточки товара</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1d2330; --muted:#667085; --line:#e3e6ea; --accent:#2457d6; --warn:#b54708; --warn-bg:#fff6ed; --ok:#067647; --ok-bg:#ecfdf3; --err:#b42318; --err-bg:#fef3f2; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width:1180px; margin:0 auto; padding:24px 16px 48px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:20px; }
+  @media (max-width:900px) { main { grid-template-columns:1fr; } }
+  h1 { grid-column:1/-1; margin:0; font-size:22px; }
+  h1 small { display:block; font-size:14px; font-weight:400; color:var(--muted); }
+  section { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:18px; min-width:0; }
+  label { display:block; font-weight:600; margin:12px 0 4px; }
+  label span { font-weight:400; color:var(--muted); font-size:13px; }
+  input, textarea { width:100%; font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:#fff; color:inherit; }
+  textarea { resize:vertical; }
+  textarea.code { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:6px; }
+  .tabs button { background:none; border:0; padding:8px 12px; cursor:pointer; font:inherit; color:var(--muted); border-bottom:2px solid transparent; }
+  .tabs button.active { color:var(--accent); border-color:var(--accent); font-weight:600; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+  .btn { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:9px 16px; font:inherit; font-weight:600; cursor:pointer; }
+  .btn:disabled { opacity:.6; cursor:wait; }
+  .btn.ghost { background:#fff; color:var(--accent); border:1px solid var(--line); font-weight:500; }
+  .copy { float:right; font-size:12px; padding:2px 8px; border:1px solid var(--line); border-radius:5px; background:#fff; cursor:pointer; color:var(--muted); }
+  .block { border-top:1px solid var(--line); padding:12px 0; }
+  .block h3 { margin:0 0 6px; font-size:15px; }
+  .block h3 em { font-style:normal; font-weight:400; color:var(--muted); font-size:13px; }
+  .text { white-space:pre-wrap; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  td, th { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; }
+  td.nodata { color:var(--warn); }
+  td.src { white-space:nowrap; }
+  .note { padding:10px 12px; border-radius:6px; margin:8px 0; }
+  .note.ok { background:var(--ok-bg); color:var(--ok); }
+  .note.warn { background:var(--warn-bg); color:var(--warn); }
+  .note.err { background:var(--err-bg); color:var(--err); }
+  .note ul { margin:4px 0 0; padding-left:18px; }
+  .muted { color:var(--muted); }
+  [hidden] { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>AI-помощник для товарных описаний <small>Черновик карточки КИП-прибора: SEO-тексты, характеристики, запросы, блок для менеджера</small></h1>
+
+  <section>
+    <div class="tabs">
+      <button type="button" data-tab="form" class="active">Форма</button>
+      <button type="button" data-tab="json">JSON</button>
+    </div>
+
+    <div id="tab-form">
+      <label for="f-name">Название *</label>
+      <input id="f-name" placeholder="Манометр показывающий DM 02">
+      <label for="f-man">Производитель</label>
+      <input id="f-man" placeholder="Манотомь">
+      <label for="f-specs">Характеристики <span>— по одной на строку: «название: значение»</span></label>
+      <textarea id="f-specs" rows="6" class="code" placeholder="диапазон измерений: 0–1,6 МПа&#10;класс точности: 1,5"></textarea>
+      <label for="f-desc">Описание / фрагмент паспорта</label>
+      <textarea id="f-desc" rows="6" placeholder="Прибор предназначен для измерения избыточного давления..."></textarea>
+    </div>
+
+    <div id="tab-json" hidden>
+      <label for="f-json">JSON товара</label>
+      <textarea id="f-json" rows="20" class="code"></textarea>
+    </div>
+
+    <div class="row">
+      <button class="btn" id="go">Сгенерировать</button>
+      <button class="btn ghost" id="example" type="button">Подставить пример</button>
+    </div>
+  </section>
+
+  <section id="result">
+    <p class="muted" id="placeholder">Здесь появится черновик карточки.</p>
+    <div id="error" class="note err" hidden></div>
+    <div id="card" hidden></div>
+  </section>
+</main>
+
+<script>
+const EXAMPLE = {
+  name: "Манометр показывающий DM 02",
+  manufacturer: "Манотомь",
+  specs: { "диапазон измерений": "0–1,6 МПа", "класс точности": "1,5", "присоединение": "G1/2", "диаметр корпуса": "100 мм" },
+  description: "Прибор предназначен для измерения избыточного давления неагрессивных жидкостей, газов и паров."
+};
+let mode = "form", lastMarkdown = "", lastJson = "";
+const $ = (id) => document.getElementById(id);
+
+document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
+  if (b.dataset.tab === "json" && mode === "form") $("f-json").value = JSON.stringify(fromForm(), null, 2);
+  mode = b.dataset.tab;
+  document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("active", x === b));
+  $("tab-form").hidden = mode !== "form"; $("tab-json").hidden = mode !== "json";
+}));
+
+function fromForm() {
+  const specs = {};
+  $("f-specs").value.split("\n").forEach((line) => {
+    const i = line.indexOf(":");
+    if (i > 0) specs[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+    else if (line.trim()) specs[line.trim()] = "";
+  });
+  return { name: $("f-name").value, manufacturer: $("f-man").value, specs, description: $("f-desc").value };
+}
+
+$("example").addEventListener("click", () => {
+  $("f-name").value = EXAMPLE.name; $("f-man").value = EXAMPLE.manufacturer; $("f-desc").value = EXAMPLE.description;
+  $("f-specs").value = Object.entries(EXAMPLE.specs).map(([k, v]) => `${k}: ${v}`).join("\n");
+  $("f-json").value = JSON.stringify(EXAMPLE, null, 2);
+});
+
+$("go").addEventListener("click", async () => {
+  const body = mode === "json" ? $("f-json").value : JSON.stringify(fromForm());
+  $("go").disabled = true; $("go").textContent = "Генерация…";
+  $("error").hidden = true; $("placeholder").hidden = true;
+  try {
+    const resp = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body });
+    const data = await resp.json().catch(() => ({ error: `Сервер вернул ${resp.status}` }));
+    if (!resp.ok) return showError(data);
+    lastMarkdown = data.markdown; lastJson = JSON.stringify(data.card, null, 2);
+    renderCard(data.card);
+  } catch (e) {
+    showError({ error: "Не удалось связаться с сервером.", details: [String(e)] });
+  } finally {
+    $("go").disabled = false; $("go").textContent = "Сгенерировать";
+  }
+});
+
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function list(items) { return items.length ? "<ul>" + items.map((x) => `<li>${esc(x)}</li>`).join("") + "</ul>" : '<p class="muted">данных нет</p>'; }
+
+function showError(data) {
+  $("card").hidden = true;
+  $("error").innerHTML = `<strong>${esc(data.error || "Ошибка")}</strong>` + (data.details && data.details.length ? list(data.details) : "");
+  $("error").hidden = false;
+}
+
+function block(title, meta, html, copyText) {
+  const id = "c" + Math.random().toString(36).slice(2);
+  window[id] = copyText;
+  return `<div class="block"><h3>${title} ${meta ? `<em>${meta}</em>` : ""}<button class="copy" onclick="copy(window['${id}'], this)">копировать</button></h3>${html}</div>`;
+}
+
+function renderCard(c) {
+  const status = c.status === "ok"
+    ? '<div class="note ok">Черновик прошёл автоматические проверки. Вычитайте перед публикацией.</div>'
+    : `<div class="note warn"><strong>Требует проверки:</strong>${list(c.warnings)}</div>`;
+  const specsRows = c.key_specs.map((s) => `<tr><td>${esc(s.name)}</td><td class="${s.source === "нет данных" ? "nodata" : ""}">${esc(s.value)}</td><td class="muted src">${esc(s.source)}</td></tr>`).join("");
+  const specsText = c.key_specs.map((s) => `${s.name}: ${s.value}`).join("\n");
+  let html = status;
+  html += block("SEO-заголовок", `${c.seo_title_length}/70`, `<div class="text">${esc(c.seo_title)}</div>`, c.seo_title);
+  html += block("SEO-описание", `${c.seo_description_length} симв. (норма 800–1200)`, `<div class="text">${esc(c.seo_description)}</div>`, c.seo_description);
+  html += block("Ключевые характеристики", "", `<table><tr><th>Характеристика</th><th>Значение</th><th>Источник</th></tr>${specsRows}</table>`, specsText);
+  html += block("Поисковые запросы", "", list(c.search_queries), c.search_queries.join("\n"));
+  const com = `<strong>Кому подходит</strong>${list(c.commercial.audience)}<strong>Какие задачи решает</strong>${list(c.commercial.tasks)}`;
+  html += block("Для менеджера", "", com, "Кому подходит:\n- " + c.commercial.audience.join("\n- ") + "\n\nКакие задачи решает:\n- " + c.commercial.tasks.join("\n- "));
+  if (c.needs_clarification.length) html += `<div class="block"><h3>Требует уточнения</h3>${list(c.needs_clarification)}</div>`;
+  html += `<div class="row"><button class="btn ghost" onclick="copy(lastMarkdown, this)">Копировать всё (Markdown)</button><button class="btn ghost" onclick="copy(lastJson, this)">Копировать JSON</button></div>`;
+  html += `<p class="muted">${esc(c.meta.provider)} / ${esc(c.meta.model)}, попыток: ${c.meta.attempts}</p>`;
+  $("card").innerHTML = html; $("card").hidden = false;
+}
+
+async function copy(text, btn) {
+  try { await navigator.clipboard.writeText(text); } catch {
+    const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove();
+  }
+  const old = btn.textContent; btn.textContent = "скопировано"; setTimeout(() => (btn.textContent = old), 1200);
+}
+</script>
+</body>
+</html>
