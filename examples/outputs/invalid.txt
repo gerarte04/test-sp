@@ -1,0 +1,2 @@
+Ошибка входных данных: Некорректный JSON.
+  - Строка 4, столбец 38: Illegal trailing comma before end of object.
